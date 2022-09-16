@@ -1,0 +1,5 @@
+- 3 switch button pullup 
+- 3 modes buzzer or speaker 
+- record decibel with mic
+- lcd // display decibel
+- speaker mp3  
