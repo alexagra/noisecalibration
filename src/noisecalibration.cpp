@@ -21,10 +21,6 @@
 #include <SD.h>
 #include <FS.h>
 
-// display
-#include <SPI.h>
-#include <TFT_eSPI.h> // Hardware-specific library
-
 // microSD Card Reader connections
 #define SD_CS 5
 #define SPI_MOSI 23
@@ -59,15 +55,10 @@ static InputDebounce button1, button2, button3;
 // mic samples buffer
 int16_t sBuffer[bufferLen];
 
-// Create Audio object
-// Audio audio;
-
 // RTOS
 TaskHandle_t t_readMic;
 TaskHandle_t t_makeNoise;
 TaskHandle_t t_displayDecibels;
-
-TFT_eSPI tft = TFT_eSPI(); // display  --Invoke custom library
 
 // global vars
 bool state1, prev_state1;
@@ -77,32 +68,6 @@ bool state3, prev_state3;
 bool button1_pressed = false;
 bool button2_pressed = false;
 bool button3_pressed = false;
-
-void displaySetup()
-{
-    tft.init();
-
-    tft.fillScreen(TFT_BLACK);
-
-    // Set "cursor" at top left corner of display (0,0) and select font 4
-    tft.setCursor(0, 0, 4);
-
-    // Set the font colour to be white with a black background
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
-    // We can now plot text on screen using the "print" class
-    tft.println("Initialised default\n");
-    tft.println("White text");
-
-    tft.setTextColor(TFT_RED, TFT_BLACK);
-    tft.println("Red text");
-
-    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    tft.println("Green text");
-
-    tft.setTextColor(TFT_BLUE, TFT_BLACK);
-    tft.println("Blue text");
-}
 
 void i2s_install()
 {
@@ -216,60 +181,6 @@ void readMic(void *parameter)
     }
 }
 
-void displayDecibels(void *parameter)
-{
-    displaySetup();
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
-
-    for (;;)
-    {
-        tft.invertDisplay(false); // Where i is true or false
-
-        tft.fillScreen(TFT_BLACK);
-
-        tft.setCursor(0, 0, 4);
-
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.println("Invert OFF\n");
-
-        tft.println("White text");
-
-        tft.setTextColor(TFT_RED, TFT_BLACK);
-        tft.println("Red text");
-
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.println("Green text");
-
-        tft.setTextColor(TFT_BLUE, TFT_BLACK);
-        tft.println("Blue text");
-
-        delay(5000);
-
-        // Binary inversion of colours
-        tft.invertDisplay(true); // Where i is true or false
-
-        tft.fillScreen(TFT_BLACK);
-
-        tft.setCursor(0, 0, 4);
-
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.println("Invert ON\n");
-
-        tft.println("White text");
-
-        tft.setTextColor(TFT_RED, TFT_BLACK);
-        tft.println("Red text");
-
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.println("Green text");
-
-        tft.setTextColor(TFT_BLUE, TFT_BLACK);
-        tft.println("Blue text");
-
-        delay(5000);
-    }
-}
-
 void makeNoise(void *parameter)
 {
 
@@ -287,7 +198,6 @@ void setup()
 
     xTaskCreatePinnedToCore(readMic, "t_readMic", 10000, NULL, 1, &t_readMic, 1);
     xTaskCreatePinnedToCore(makeNoise, "t_makeNoise", 10000, NULL, 1, &t_makeNoise, 0);
-    xTaskCreatePinnedToCore(displayDecibels, "t_displayDecibels", 10000, NULL, 1, &t_displayDecibels, 0);
 
     // setup input buttons (debounced)
     button1.setup(BUTTON1, BUTTON_DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES);
@@ -312,27 +222,9 @@ void setup()
 
     // init serial
     Serial.begin(115200);
-
-    // Start microSD Card
-    // if (!SD.begin(SD_CS))
-    // {
-    //     Serial.println("Error accessing microSD card!");
-    //     while (1)
-    //         ;
-    // }
-
-    //! Setup I2S speaker
-    // audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-    // Set Volume
-    // audio.setVolume(21);
-
-    // Open music file
-    // audio.connecttoFS(SD, "/test2.mp3");
 }
 
 void loop()
 {
     checkButtons();
-
-    //! audio.loop();
 }
