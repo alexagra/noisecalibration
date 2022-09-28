@@ -89,6 +89,11 @@ void i2s_install()
     i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
 }
 
+void test()
+{
+    //! add test func
+}
+
 void i2s_setpin()
 {
     // Set I2S pin configuration
