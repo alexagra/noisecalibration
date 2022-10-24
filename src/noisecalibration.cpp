@@ -3,7 +3,7 @@
  *  Decibel Calibration Station
  *  for NoisePollution App
  *  Copyright (C) 2022 Alex Agrafiotis
- *
+ *   mac:  30:C6:F7:20:A6:C4
  */
 #include "Arduino.h"
 
@@ -35,12 +35,10 @@
 
 #define MAX_DB 120
 
-#define BUTTON1 5
-#define BUTTON2 18
-#define BUTTON3 19
-#define BUTTON_DEBOUNCE_DELAY 20 // [ms]
-
-#define SIREN 4
+#define SIREN_M0 4  // 6v~ 75db--------12v ~100db
+#define SIREN_M1 5  // 6v~ 75db--------12v ~100db
+#define SIREN_M2 18 // 6v~ 75db--------12v ~100db
+#define SIREN_M3 19 // 6v~ 75db--------12v ~100db
 
 BluetoothSerial SerialBT;
 
@@ -61,17 +59,42 @@ bool state1, prev_state1;
 bool state2, prev_state2;
 bool state3, prev_state3;
 
-bool button1_pressed = false;
-bool button2_pressed = false;
-bool button3_pressed = false;
-
+bool siren_m0_state = false;
+bool siren_m1_state = false;
+bool siren_m2_state = false;
+bool siren_m3_state = false;
 bool record = false;
 
+float live_decibels = 0;
 float avg_DB = 0;
 float mean_DB = 0;
 int samples_DB = 0;
 
 // functions
+void turnOnMode(int m)
+{
+    (m == 0) ? siren_m0_state = true : siren_m0_state = false;
+    (m == 1) ? siren_m1_state = true : siren_m1_state = false;
+    (m == 2) ? siren_m2_state = true : siren_m2_state = false;
+    (m == 3) ? siren_m3_state = true : siren_m3_state = false;
+
+    record = true;
+
+    PRINT(siren_m0_state);
+    PRINT(siren_m1_state);
+    PRINT(siren_m2_state);
+    PRINT(siren_m3_state);
+}
+void stopRecord()
+{
+    siren_m0_state = false;
+    siren_m1_state = false;
+    siren_m2_state = false;
+    siren_m3_state = false;
+
+    record = false;
+}
+
 void i2s_install()
 {
     // Set up I2S Processor configuration
@@ -89,11 +112,6 @@ void i2s_install()
     i2s_driver_install(I2S_PORT, &i2s_config, 0, NULL);
 }
 
-void test()
-{
-    //! add test func
-}
-
 void i2s_setpin()
 {
     // Set I2S pin configuration
@@ -106,50 +124,8 @@ void i2s_setpin()
     i2s_set_pin(I2S_PORT, &pin_config);
 }
 
-void checkButtons()
-{
-
-    // check button 1
-    state1 = button1.process(millis());
-
-    if (state1 && !prev_state1)
-    {
-        button1_pressed = true;
-    }
-
-    prev_state1 = state1;
-
-    // check button 2
-    state2 = button2.process(millis());
-
-    if (state2 && !prev_state2)
-    {
-        button2_pressed = true;
-    }
-
-    prev_state2 = state2;
-
-    // check button 3
-    state3 = button3.process(millis());
-
-    if (state3 && !prev_state3)
-    {
-        button3_pressed = true;
-    }
-
-    prev_state3 = state3;
-}
-
 float readLiveDB()
 {
-
-    float _decibels = 0;
-    // False print statements to "lock range" on serial plotter display
-    int rangelimit = 120;
-    Serial.print(0);
-    Serial.print(" ");
-    Serial.print(rangelimit);
-    Serial.print(" ");
 
     // Get I2S data and place in data buffer
     size_t bytesIn = 0;
@@ -160,6 +136,7 @@ float readLiveDB()
         // Read I2S data buffer
         // int16_t samples_read = bytesIn / 8;
         int16_t samples_read = bufferLen;
+        float _decibels = 0;
 
         if (samples_read > 0)
         {
@@ -170,7 +147,7 @@ float readLiveDB()
                 if (sBuffer[i] != 0)
                 {
                     _counter_non_zero_values++;
-                    _mean += (abs(sBuffer[i])); //? abs()
+                    _mean += (abs(sBuffer[i]));
                 }
             }
 
@@ -180,7 +157,6 @@ float readLiveDB()
             //! decibel formula
             //? 20*Math.log10(_mean/32768) + 110; (in java)
             _decibels = 20 * log10(_mean / 32768) + MAX_DB;
-
             return _decibels;
         }
     }
@@ -201,28 +177,32 @@ float calculateAvgDB()
 // TASKS
 void readMic(void *parameter)
 {
-    float _decibels = 0;
+    // Set up I2S
+    i2s_install();
+    i2s_setpin();
+    i2s_start(I2S_PORT);
+
     float _minDb = 10000;
     float _maxDb = -10000;
 
     for (;;)
     {
 
-        _decibels = readLiveDB();
+        live_decibels = readLiveDB();
 
-        if (_decibels < _minDb)
-            _minDb = _decibels;
+        if (live_decibels < _minDb)
+            _minDb = live_decibels;
 
-        if (_decibels > _maxDb)
-            _maxDb = _decibels;
+        if (live_decibels > _maxDb)
+            _maxDb = live_decibels;
 
-        PRINT(_decibels);
-        PRINT(_maxDb);
-        PRINT(_maxDb);
+        // PRINT(live_decibels);
+        // PRINT(_minDb);
+        // PRINT(_maxDb);
 
         if (record)
         {
-            mean_DB += _decibels;
+            mean_DB += live_decibels;
             samples_DB++;
         }
 
@@ -235,11 +215,21 @@ void readMic(void *parameter)
 void makeNoise(void *parameter)
 {
 
+    // OUTPUTS
+
+    pinMode(SIREN_M0, OUTPUT);
+    pinMode(SIREN_M1, OUTPUT);
+    pinMode(SIREN_M2, OUTPUT);
+    pinMode(SIREN_M3, OUTPUT);
+
     for (;;)
     {
+        digitalWrite(SIREN_M0, siren_m0_state);
+        digitalWrite(SIREN_M1, siren_m1_state);
+        digitalWrite(SIREN_M2, siren_m2_state);
+        digitalWrite(SIREN_M3, siren_m3_state);
 
-        digitalWrite(SIREN, !digitalRead(SIREN));
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }
 
@@ -259,22 +249,33 @@ void sendRecieveBtData(void *parameter)
             PRINT(bt_command);
         }
 
-        if (bt_command == "ON")
+        if (bt_command == "RECORD0")
         {
-            digitalWrite(2, HIGH);
+            turnOnMode(0);
+
+            SerialBT.println(live_decibels);
         }
-        else if (bt_command == "OFF")
+        else if (bt_command == "RECORD1")
         {
-            digitalWrite(2, LOW);
+            turnOnMode(1);
+            SerialBT.println(live_decibels);
         }
-        else if (bt_command == "RECORD")
+        else if (bt_command == "RECORD2")
         {
-            record = true;
+            turnOnMode(2);
+
+            SerialBT.println(live_decibels);
+        }
+        else if (bt_command == "RECORD3")
+        {
+            turnOnMode(3);
+
+            SerialBT.println(live_decibels);
         }
         else if (bt_command == "STOP")
         {
             bt_command = "";
-            record = false;
+            stopRecord();
             SerialBT.println(calculateAvgDB());
         }
 
@@ -284,22 +285,6 @@ void sendRecieveBtData(void *parameter)
 
 void setup()
 {
-
-    // setup input buttons (debounced)
-    button1.setup(BUTTON1, BUTTON_DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES);
-    button2.setup(BUTTON2, BUTTON_DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES);
-    button3.setup(BUTTON3, BUTTON_DEBOUNCE_DELAY, InputDebounce::PIM_INT_PULL_UP_RES);
-
-    // OUTPUTS
-    pinMode(2, OUTPUT);
-
-    pinMode(SIREN, OUTPUT);
-    digitalWrite(SIREN, LOW);
-
-    // Set up I2S
-    i2s_install();
-    i2s_setpin();
-    i2s_start(I2S_PORT);
 
     // init serial
     sDEBUG_BEGIN(115200);
@@ -311,6 +296,4 @@ void setup()
 
 void loop()
 {
-
-    checkButtons();
 }
