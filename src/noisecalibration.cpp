@@ -23,9 +23,9 @@
 #include <driver/i2s.h>
 
 //  INMP441 I2S microphone Connections to
-#define I2S_WS 25
+#define I2S_WS 32
 #define I2S_SD 33
-#define I2S_SCK 32
+#define I2S_SCK 25
 
 // Use I2S Processor 1 for mic
 #define I2S_PORT I2S_NUM_1
@@ -224,9 +224,9 @@ void makeNoise(void *parameter)
 
     for (;;)
     {
-        digitalWrite(SIREN_M0, siren_m0_state);
-        digitalWrite(SIREN_M1, siren_m1_state);
-        digitalWrite(SIREN_M2, siren_m2_state);
+        digitalWrite(SIREN_M0, siren_m0_state); // 12v
+        digitalWrite(SIREN_M1, siren_m1_state); // 6v
+        digitalWrite(SIREN_M2, siren_m2_state); // 3v
         digitalWrite(SIREN_M3, siren_m3_state);
 
         vTaskDelay(10 / portTICK_PERIOD_MS);
