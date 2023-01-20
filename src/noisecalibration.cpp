@@ -35,10 +35,10 @@
 
 #define MAX_DB 120
 
-#define SIREN_M0 4  // 6v~ 75db--------12v ~100db
-#define SIREN_M1 5  // 6v~ 75db--------12v ~100db
-#define SIREN_M2 18 // 6v~ 75db--------12v ~100db
-#define SIREN_M3 19 // 6v~ 75db--------12v ~100db
+#define SIREN_M0 4  // not working on pcb ------> with no siren
+#define SIREN_M1 5  // 3v
+#define SIREN_M2 18 // 6v
+#define SIREN_M3 19 // 12v
 
 BluetoothSerial SerialBT;
 
@@ -47,9 +47,6 @@ TaskHandle_t t_readMic;
 TaskHandle_t t_makeNoise;
 TaskHandle_t t_displayDecibels;
 TaskHandle_t t_sendRecieveBtData;
-
-// init buttons
-static InputDebounce button1, button2, button3;
 
 // mic samples buffer
 int16_t sBuffer[bufferLen];
@@ -222,12 +219,14 @@ void makeNoise(void *parameter)
     pinMode(SIREN_M2, OUTPUT);
     pinMode(SIREN_M3, OUTPUT);
 
+    stopRecord();
+
     for (;;)
     {
-        digitalWrite(SIREN_M0, siren_m0_state); // 12v
-        digitalWrite(SIREN_M1, siren_m1_state); // 6v
-        digitalWrite(SIREN_M2, siren_m2_state); // 3v
-        digitalWrite(SIREN_M3, siren_m3_state);
+        // digitalWrite(SIREN_M0, siren_m0_state); // no siren
+        digitalWrite(SIREN_M1, siren_m1_state); // 3v
+        digitalWrite(SIREN_M2, siren_m2_state); // 6v
+        digitalWrite(SIREN_M3, siren_m3_state); // 12v
 
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
@@ -241,42 +240,39 @@ void sendRecieveBtData(void *parameter)
 
     for (;;)
     {
-
         if (SerialBT.available())
         {
             bt_command = SerialBT.readString();
             bt_command.trim();
             PRINT(bt_command);
-        }
 
-        if (bt_command == "RECORD0")
-        {
-            turnOnMode(0);
-
-            SerialBT.println(live_decibels);
-        }
-        else if (bt_command == "RECORD1")
-        {
-            turnOnMode(1);
-            SerialBT.println(live_decibels);
-        }
-        else if (bt_command == "RECORD2")
-        {
-            turnOnMode(2);
-
-            SerialBT.println(live_decibels);
-        }
-        else if (bt_command == "RECORD3")
-        {
-            turnOnMode(3);
-
-            SerialBT.println(live_decibels);
-        }
-        else if (bt_command == "STOP")
-        {
-            bt_command = "";
-            stopRecord();
-            SerialBT.println(calculateAvgDB());
+            if (bt_command == "RECORD0")
+            {
+                turnOnMode(0);
+            }
+            else if (bt_command == "RECORD1")
+            {
+                turnOnMode(1);
+            }
+            else if (bt_command == "RECORD2")
+            {
+                turnOnMode(2);
+            }
+            else if (bt_command == "RECORD3")
+            {
+                turnOnMode(3);
+            }
+            else if (bt_command == "STOP")
+            {
+                bt_command = "";
+                stopRecord();
+                SerialBT.println(calculateAvgDB());
+            }
+            else
+            {
+                SerialBT.println("ERROR");
+                PRINT("ERROR");
+            }
         }
 
         vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -285,7 +281,6 @@ void sendRecieveBtData(void *parameter)
 
 void setup()
 {
-
     // init serial
     sDEBUG_BEGIN(115200);
 
