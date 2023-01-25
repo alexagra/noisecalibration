@@ -212,9 +212,12 @@ void readMic(void *parameter)
 void makeNoise(void *parameter)
 {
 
-    // OUTPUTS
+    // OUTPUTS RELAYS NEGATIVE LOGIC
+    digitalWrite(SIREN_M1, HIGH); // 3v
+    digitalWrite(SIREN_M2, HIGH); // 6v
+    digitalWrite(SIREN_M3, HIGH); // 12v
 
-    pinMode(SIREN_M0, OUTPUT);
+    // pinMode(SIREN_M0, OUTPUT);
     pinMode(SIREN_M1, OUTPUT);
     pinMode(SIREN_M2, OUTPUT);
     pinMode(SIREN_M3, OUTPUT);
@@ -224,11 +227,11 @@ void makeNoise(void *parameter)
     for (;;)
     {
         // digitalWrite(SIREN_M0, siren_m0_state); // no siren
-        digitalWrite(SIREN_M1, siren_m1_state); // 3v
-        digitalWrite(SIREN_M2, siren_m2_state); // 6v
-        digitalWrite(SIREN_M3, siren_m3_state); // 12v
+        digitalWrite(SIREN_M1, !siren_m1_state); // 3v
+        digitalWrite(SIREN_M2, !siren_m2_state); // 6v
+        digitalWrite(SIREN_M3, !siren_m3_state); // 12v
 
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        DELAY(10);
     }
 }
 
@@ -245,7 +248,8 @@ void sendRecieveBtData(void *parameter)
             bt_command = SerialBT.readString();
             bt_command.trim();
             PRINT(bt_command);
-
+            stopRecord();
+            DELAY(50);
             if (bt_command == "RECORD0")
             {
                 turnOnMode(0);
@@ -275,7 +279,7 @@ void sendRecieveBtData(void *parameter)
             }
         }
 
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        DELAY(5);
     }
 }
 
